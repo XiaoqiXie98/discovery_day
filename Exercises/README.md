@@ -1,3 +1,3 @@
 ## Add here instructions/pipeline
 
-Inside this directory add data, scripts and results of exercises
+We have training data and validation data. We have a rmd script, which is also the result. Nothing is uploaded in result.
