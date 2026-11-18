@@ -54,4 +54,5 @@ This workshop introduces the two main families of models used in the field, mech
 ## References
 
 Amman, G. D. (1978). Biology, ecology, and causes of outbreaks of the mountain pine beetle in lodgepole pine forests. In A. A. Berryman, G. D. Amman, & R. W. Stark (Eds.), Proceedings: Theory and practice of mountain pine beetle management in lodgepole pine forests, April 25-27, 1978, Pullman, WA (pp. 39-53). University of Idaho, Forest, Wildlife and Range Experiment Station, Moscow, ID.
+
 Safranyik, L., & Carroll, A. L. (2006). The biology and epidemiology of the mountain pine beetle in lodgepole pine forests. In L. Safranyik & B. Wilson (Eds.), The mountain pine beetle: A synthesis of biology, management, and impacts in lodgepole pine (pp. 3-66). Natural Resources Canada, Canadian Forest Service, Pacific Forestry Centre, Victoria, BC.
