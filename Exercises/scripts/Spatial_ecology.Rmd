@@ -1,0 +1,194 @@
+---
+title: "Spatial_ecology"
+author: "xiaoqi"
+date: "2024-11-12"
+output: html_document
+---
+load data named 'data_nn.csv'
+this data has been normalized, which means that the value of my factors except the factor called 'infestation' have been controlled so that there are fewer extreme values to affect the model's result.
+```{r}
+data=read.csv("data_train.csv")
+```
+by using colnames() to see the factors included in this data
+```{r}
+colnames(data)
+```
+Now, you will see a column named X, which shows the id and it is not a factor affecting mountain pine beetle. Thus, We will remove this column.
+```{r}
+data=data[,-1]#remove the first column
+
+#rename columns
+colnames(data)=c("Age","Pine Density","Relative Humidity","Wind Speed","Soil Moisture Index","Degree Days","Overwinter Survival Probability","Last Year Infestations within a Cell","Dispersal","y")
+```
+The column named y shows the response variable and all other columns are the input explanatory variable.
+
+install and load the package 
+```{r}
+install.packages("pscl")
+install.packages("emdbook")
+install.packages("ggplot2")
+```
+Library packages
+```{r}
+library(ggplot2)
+library(pscl)
+library("emdbook")
+```
+
+
+Fit the zero-inflated negative binomial model for data.
+Zero-inflated negatie binomial model is a hierarchical model containing two models--a binomial model (presence model) and a negative binomial model (abundance model).
+
+```{r}
+model=zeroinfl(y~.,data=data,dist="negbin")#~. means we use all other columns except y to be input columns. and negbin here indicate zero-inflated engative binomial model.
+```
+Plot the coefficients!
+
+For the abundance (count) model (negative binomial model)
+```{r}
+# Extract coefficients and confidence intervals
+coeffs = summary(model)$coefficients$count
+ci_lower = coeffs[, 1] - 1.96 * coeffs[, 2]  # Lower 95% CI
+ci_upper = coeffs[, 1] + 1.96 * coeffs[, 2]  # Upper 95% CI
+
+# Create a data frame for plotting
+plot_data = data.frame(
+  Coefficient = rownames(coeffs),
+  Estimate = coeffs[, 1],
+  Lower = ci_lower,
+  Upper = ci_upper
+)
+
+# Create the coefficient plot
+ggplot(plot_data, aes(x = Coefficient, y = Estimate)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.2) +
+  coord_flip() +  # Flip the axes for better readability
+  labs(title = "Coefficient Plot for Abudance Model",
+       x = "Coefficients",
+       y = "Estimates") +
+  theme_minimal()
+```
+For the presence (zero) model (logistic model)
+```{r}
+# Extract coefficients and confidence intervals
+coeffs = summary(model)$coefficients$zero
+ci_lower = coeffs[, 1] - 1.96 * coeffs[, 2]  # Lower 95% CI
+ci_upper = coeffs[, 1] + 1.96 * coeffs[, 2]  # Upper 95% CI
+
+# Create a data frame for plotting
+plot_data = data.frame(
+  Coefficient = rownames(coeffs),
+  Estimate = coeffs[, 1],
+  Lower = ci_lower,
+  Upper = ci_upper
+)
+
+# Create the coefficient plot
+ggplot(plot_data, aes(x = Coefficient, y = Estimate)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.2) +
+  coord_flip() +  # Flip the axes for better readability
+  labs(title = "Coefficient Plot for Presence Model",
+       x = "Coefficients",
+       y = "Estimates") +
+  theme_minimal()
+```
+Now, we have the coefficients for this model. We used data from 2007 to 2013 to train this model and we want to predict the severity of infestation in 2014.
+Let's load the predict data, which contains data
+```{r}
+data_predict=read.csv("data_predict.csv")
+```
+Now, I will write a function to estimate the severity of infestations in each cell.
+How I define severity is shown in my slides.
+```{r}
+severity<-function(y){
+  S<-numeric()
+  
+  loc0=which(y==0)
+  S[loc0]=0
+  
+  loc1=which(y>0&y<4)
+  S[loc1]=1
+  
+  loc2=which(y>3&y<26)
+  S[loc2]=2
+  
+  loc3=which(y>25)
+  S[loc3]=3
+  return(S)
+}
+```
+Then, I will use this function to return the real severity of infestation in 2014. I call it 's'.
+```{r}
+s=severity(data_predict$y)
+```
+
+Now, let's predict the severity in 2014. This prediction is done by estimating the probability of having the severity (as shown in the severity table).
+
+Now, I will create a new function to do the prediction
+```{r}
+#estimate the probability of each severity
+cdfzinb<-function(x,z,cx,cz,theta){
+  n=dim(x)[1]
+  cdf0<-dzinbinom(rep(0,n),exp(x%*%cx),rep(theta,n),exp(z%*%cz)/(1+exp(z%*%cz)))
+  cdf1<-0
+  for(i in 1:3){
+    cdf1<-cdf1+dzinbinom(rep(i,n),exp(x%*%cx),rep(theta,n),exp(z%*%cz)/(1+exp(z%*%cz)))
+  }
+  cdf2<-0
+  for( i in 4:25){
+    cdf2<-cdf2+dzinbinom(rep(i,n),exp(x%*%cx),rep(theta,n),exp(z%*%cz)/(1+exp(z%*%cz)))
+  }
+  cdf3<-1-cdf0-cdf1-cdf2
+  d<-cbind(cdf0,cdf1,cdf2,cdf3)
+  colnames(d)<-c("0","1","2","3")
+  return(d)
+}
+
+#predict the severity
+predictionzinb<-function(X,Z,cx,cz,theta){
+  p<-cdfzinb(X,Z,cx,cz,theta)
+  maxprob<-apply(p,1,max)
+  position<-max.col(p)-1
+  return(cbind(position,maxprob))
+}
+#X is the input of the negative binomial distribution, Z is the input of Bernoulli distribution, cx is the coefficients of the negative binomial and cz is the coefficients of the Bernoulli distribution. theta is the dispersion parameter of negative binomial distribution.
+
+```
+Now, let's get cx,cz and theta from the fitted model called 'model'.
+```{r}
+cx=as.numeric(model$coefficients$count)#coefficients in the negative binomial distribution
+theta=model$theta #theta
+cz=as.numeric(model$coefficients$zero)#coefficients in the bernoulli distribution
+```
+Here, we think the factors affecting the bernoulli and negative binomial are the same. Thus, X=Z and they are columns except y
+```{r}
+X=Z=as.matrix(cbind(1,data_predict[,-c(1,11)]))#1 means I add the intercept column
+```
+
+Now, let's get prediction
+```{r}
+prediction=predictionzinb(X,Z,cx,cz,theta)
+```
+Let's get accuracy, rmse.
+I created two functions for them.
+```{r}
+accuracy=function(y,yhat){
+  return(length(which(y==yhat))/length(y))
+}
+
+RMSE=function(y,yhat){
+  a=mean((y-yhat)^2)
+  #print(a)
+  return(sqrt(a))
+}
+```
+What is the accuracy and rmse of this prediction dataset
+```{r}
+accuracy(s,prediction)
+RMSE(s,prediction)
+```
+The accuracy of predicting the severity is 81.5% and the rmse is 0.822. RMSE means how the prediction deviates from the true value and this is a relatively small value.
+
+
