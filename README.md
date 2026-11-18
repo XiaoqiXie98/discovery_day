@@ -29,7 +29,7 @@ This workshop introduces the two main families of models used in the field, mech
 - [RStudio Desktop](https://posit.co/download/rstudio-desktop/)
 - Needed R libraries and their installation code can be found in the script.
 
-## Small Outline/Structure
+## Structure
 
 - **Introduction**
   - What spatial ecology studies: species, time, and regions of interest
