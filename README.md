@@ -27,7 +27,7 @@ This workshop introduces the two main families of models used in the field, mech
 
 - [R](https://cran.r-project.org/)
 - [RStudio Desktop](https://posit.co/download/rstudio-desktop/)
-- R libraries needed and their installation code can be found in the script.
+- Needed R libraries and their installation code can be found in the script.
 
 ## Small Outline/Structure
 
